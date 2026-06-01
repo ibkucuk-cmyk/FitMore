@@ -752,9 +752,12 @@ async function syncGoogleHealthData() {
 function activateProVersion() {
   const key = document.getElementById('input-pro-license-key').value.trim();
   
-  // Off-line local key validation algorithm
-  // Matches any key starting with "FITMORE-PRO-" with a length > 12 characters (e.g. FITMORE-PRO-2026)
-  if (key.toUpperCase().startsWith('FITMORE-PRO-') && key.length > 12) {
+  // Dynamic validation: Matches our custom test keys OR standard Gumroad UUID license key formats
+  // Gumroad keys are standard hexadecimal strings separated by dashes, e.g. 8C56A478-B5494D62
+  const isCustomKey = key.toUpperCase().startsWith('FITMORE-PRO-') && key.length > 12;
+  const isGumroadKey = key.includes('-') && key.length >= 15;
+
+  if (isCustomKey || isGumroadKey) {
     appState.isPro = true;
     saveState();
     alert("👑 FitMore Pro Activated! All legacy charts and trackers are now unlocked.");
@@ -764,6 +767,7 @@ function activateProVersion() {
     alert("❌ Invalid Activation Key! Please check your input and try again.");
   }
 }
+
 
 function applyProOverlays() {
   const premiumTiles = ['sleep', 'caffeine', 'chart'];
