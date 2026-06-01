@@ -186,7 +186,8 @@ function initApp() {
   updateSyncStatus();
 
   // Try to sync with Google Health on startup if connected
-  if (appState.googleOAuth && appState.googleOAuth.refreshToken) {
+  if (appState.googleOAuth && (appState.googleOAuth.accessToken || appState.googleOAuth.refreshToken)) {
+    console.log('[FitMore] Connected on startup — auto-syncing...');
     syncGoogleHealthData();
   }
 }
@@ -678,7 +679,9 @@ async function handleRefreshSync() {
   icon.classList.add('fa-spin');
   btn.disabled = true;
 
-  if (appState.googleOAuth && appState.googleOAuth.refreshToken) {
+  const isConnected = appState.googleOAuth && (appState.googleOAuth.accessToken || appState.googleOAuth.refreshToken);
+  
+  if (isConnected) {
     // Connected — re-sync from Google
     try {
       await syncGoogleHealthData();
@@ -690,7 +693,7 @@ async function handleRefreshSync() {
   } else {
     // Not connected — just refresh dashboard from local state
     renderDashboard();
-    showToast('🔄 Dashboard refreshed from local data.');
+    showToast('🔄 Not connected. Click Connect Health first.');
   }
 
   // Stop spinning
@@ -705,7 +708,9 @@ function updateSyncStatus() {
   const btn = document.getElementById('btn-refresh-sync');
   if (!btn) return;
 
-  if (appState.googleOAuth && appState.googleOAuth.refreshToken) {
+  const isConnected = appState.googleOAuth && (appState.googleOAuth.accessToken || appState.googleOAuth.refreshToken);
+  
+  if (isConnected) {
     btn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Sync';
     btn.style.borderColor = 'var(--fitbit-teal)';
     btn.style.color = 'var(--fitbit-teal)';
@@ -815,25 +820,33 @@ async function saveGoogleSetup() {
     });
 
     const data = await response.json();
-    console.log("Token exchange response:", data);
+    console.log("[FitMore] Token exchange FULL response:", JSON.stringify(data));
     
     if (data.error) {
       alert("Error exchanging code: " + (data.error_description || data.error));
       return;
     }
 
+    // Log exactly what we got for debugging
+    console.log("[FitMore] access_token:", data.access_token ? "YES (" + data.access_token.substring(0,20) + "...)" : "MISSING");
+    console.log("[FitMore] refresh_token:", data.refresh_token ? "YES" : "MISSING");
+    console.log("[FitMore] expires_in:", data.expires_in);
+    console.log("[FitMore] scope:", data.scope);
+
     appState.googleOAuth = {
       clientId: clientId,
       clientSecret: clientSecret,
       redirectUri: redirectUriVal,
-      accessToken: data.access_token,
+      accessToken: data.access_token || '',
       refreshToken: data.refresh_token || (appState.googleOAuth ? appState.googleOAuth.refreshToken : ''),
-      tokenExpiry: Date.now() + (data.expires_in * 1000)
+      tokenExpiry: Date.now() + ((data.expires_in || 3600) * 1000)
     };
 
     saveState();
     updateSyncStatus();
-    alert("Successfully connected to Google Health! Syncing data...");
+    
+    const tokenInfo = data.refresh_token ? 'Full access (with refresh token)' : 'Session access (no refresh token — token expires in ~1hr)';
+    alert(`✅ Connected to Google Health!\n\n${tokenInfo}\nScopes: ${data.scope || 'unknown'}\n\nSyncing your data now...`);
     closeLogModal();
     syncGoogleHealthData();
   } catch (err) {
