@@ -39,7 +39,8 @@ const DEFAULT_STATE = {
     workout: true,
     water: true,
     chart: true
-  }
+  },
+  isPro: false
 };
 
 let appState = JSON.parse(localStorage.getItem('fitbit_classic_state')) || DEFAULT_STATE;
@@ -57,6 +58,10 @@ if (!appState.caloriesHistory) {
 if (appState.visibleTiles && appState.visibleTiles.chart === undefined) {
   appState.visibleTiles.chart = true;
 }
+if (appState.isPro === undefined) {
+  appState.isPro = false;
+}
+
 
 
 // SVG Dash Circumference for r=38
@@ -98,6 +103,12 @@ function initApp() {
 
   document.getElementById('btn-g-auth-url').addEventListener('click', openGoogleAuth);
   document.getElementById('btn-save-g-setup').addEventListener('click', saveGoogleSetup);
+
+  document.getElementById('btn-pro-unlock').addEventListener('click', () => {
+    openLogModal('pro-unlock');
+  });
+  document.getElementById('btn-activate-pro').addEventListener('click', activateProVersion);
+
 
 
   // Setup Tile Customizer Checkboxes
@@ -169,7 +180,9 @@ function renderDashboard() {
   updateWorkoutUI();
   updateWaterUI();
   updateChartUI();
+  applyProOverlays();
 }
+
 
 
 // 1. Tile Customization & Visibility
@@ -715,5 +728,84 @@ async function syncGoogleHealthData() {
     console.error("Error syncing steps: ", e);
   }
 }
+
+// Pro Key Verification & Card Gating
+function activateProVersion() {
+  const key = document.getElementById('input-pro-license-key').value.trim();
+  
+  // Off-line local key validation algorithm
+  // Matches any key starting with "FITMORE-PRO-" with a length > 12 characters (e.g. FITMORE-PRO-2026)
+  if (key.toUpperCase().startsWith('FITMORE-PRO-') && key.length > 12) {
+    appState.isPro = true;
+    saveState();
+    alert("👑 FitMore Pro Activated! All legacy charts and trackers are now unlocked.");
+    closeLogModal();
+    renderDashboard();
+  } else {
+    alert("❌ Invalid Activation Key! Please check your input and try again.");
+  }
+}
+
+function applyProOverlays() {
+  const premiumTiles = ['sleep', 'caffeine', 'chart'];
+  
+  // Update Header Button Status
+  const btnPro = document.getElementById('btn-pro-unlock');
+  if (btnPro) {
+    if (appState.isPro) {
+      btnPro.innerHTML = '<i class="fa-solid fa-crown"></i> Pro Active';
+      btnPro.style.borderColor = 'var(--fitbit-teal)';
+      btnPro.style.color = 'var(--fitbit-teal)';
+      btnPro.style.cursor = 'default';
+      btnPro.onclick = (e) => e.preventDefault();
+    } else {
+      btnPro.innerHTML = '<i class="fa-solid fa-crown"></i> Get Pro';
+      btnPro.style.borderColor = 'var(--color-active)';
+      btnPro.style.color = 'var(--color-active)';
+      btnPro.style.cursor = 'pointer';
+    }
+  }
+
+  premiumTiles.forEach(tileKey => {
+    const card = document.getElementById(`tile-${tileKey}`);
+    if (!card) return;
+
+    // Remove existing overlays
+    const existingOverlay = card.querySelector('.pro-locked-overlay');
+    if (existingOverlay) {
+      existingOverlay.remove();
+    }
+
+    if (!appState.isPro) {
+      card.classList.add('locked-card');
+      const overlay = document.createElement('div');
+      overlay.className = 'pro-locked-overlay';
+      
+      let title = "Feature Locked";
+      let desc = "This feature requires a premium activation key.";
+      if (tileKey === 'sleep') {
+        title = "Detailed Sleep Stages";
+        desc = "Unlock detailed REM, Deep, Light, and Awake segments tracking.";
+      } else if (tileKey === 'caffeine') {
+        title = "Caffeine Log Tracker";
+        desc = "Log coffee, track daily mg thresholds, and maintain hydration logs.";
+      } else if (tileKey === 'chart') {
+        title = "Calories Comparison Trend";
+        desc = "Compare daily Food Calories In vs burned Calories Out in a beautiful bar graph.";
+      }
+
+      overlay.innerHTML = `
+        <i class="fa-solid fa-lock"></i>
+        <h4>${title}</h4>
+        <p>${desc}</p>
+        <button class="btn btn-primary" onclick="openLogModal('pro-unlock')" style="background: var(--color-active); color: #0d131a; font-weight:700; border:none; padding: 0.4rem 1rem; font-size: 0.8rem; border-radius: 8px; cursor: pointer;">Unlock with Pro</button>
+      `;
+      card.appendChild(overlay);
+    } else {
+      card.classList.remove('locked-card');
+    }
+  });
+}
+
 
 
