@@ -40,12 +40,31 @@ const DEFAULT_STATE = {
     water: true,
     chart: true
   },
-  isPro: false
+  isPro: false,
+  googleOAuth: {
+    clientId: "",
+    clientSecret: "",
+    redirectUri: "",
+    accessToken: "",
+    refreshToken: "",
+    tokenExpiry: 0
+  }
 };
 
 let appState = JSON.parse(localStorage.getItem('fitbit_classic_state')) || DEFAULT_STATE;
 
 // Ensure any missing state keys are backfilled automatically
+if (!appState.googleOAuth) {
+  appState.googleOAuth = {
+    clientId: "",
+    clientSecret: "",
+    redirectUri: "",
+    accessToken: "",
+    refreshToken: "",
+    tokenExpiry: 0
+  };
+}
+
 if (!appState.caloriesHistory) {
   appState.caloriesHistory = [
     { date: "May 28", caloriesIn: 1800, caloriesOut: 2000 },
