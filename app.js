@@ -1,6 +1,7 @@
 // Core Fitbit Legacy Dashboard Controller
 
 // App State (Default values if not in localStorage)
+// ALL zeros — fresh users see a clean, empty dashboard until they log or sync data
 const DEFAULT_STATE = {
   goals: {
     steps: 10000,
@@ -9,28 +10,21 @@ const DEFAULT_STATE = {
     active: 30
   },
   metrics: {
-    steps: 7854,
-    caloriesBurned: 1450, // base calories burned before workouts
-    distance: 3.4,
-    activeMin: 22,
-    sleepHours: 7.4,
-    sleepScore: 82,
-    stressScore: 78,
-    stressMood: "Calm & Balanced",
-    caffeineMg: 250,
-    waterOz: 32,
-    foodCalories: 1450
+    steps: 0,
+    caloriesBurned: 0,
+    distance: 0,
+    activeMin: 0,
+    sleepHours: 0,
+    sleepScore: 0,
+    sleepStages: { deep: 0, rem: 0, light: 0, awake: 0 },
+    stressScore: 0,
+    stressMood: "--",
+    caffeineMg: 0,
+    waterOz: 0,
+    foodCalories: 0
   },
-  workouts: [
-    { type: "Running", duration: 20, calories: 250, time: "08:15 AM" }
-  ],
-  caloriesHistory: [
-    { date: "May 28", caloriesIn: 1800, caloriesOut: 2000 },
-    { date: "May 29", caloriesIn: 2100, caloriesOut: 2200 },
-    { date: "May 30", caloriesIn: 1950, caloriesOut: 2150 },
-    { date: "May 31", caloriesIn: 2300, caloriesOut: 2400 },
-    { date: "Today", caloriesIn: 1450, caloriesOut: 1700 }
-  ],
+  workouts: [],
+  caloriesHistory: [],
   visibleTiles: {
     sleep: true,
     stress: true,
@@ -51,7 +45,7 @@ const DEFAULT_STATE = {
   }
 };
 
-let appState = JSON.parse(localStorage.getItem('fitbit_classic_state')) || DEFAULT_STATE;
+let appState = JSON.parse(localStorage.getItem('fitbit_classic_state')) || JSON.parse(JSON.stringify(DEFAULT_STATE));
 
 // Ensure any missing state keys are backfilled automatically
 if (!appState.googleOAuth) {
@@ -66,13 +60,10 @@ if (!appState.googleOAuth) {
 }
 
 if (!appState.caloriesHistory) {
-  appState.caloriesHistory = [
-    { date: "May 28", caloriesIn: 1800, caloriesOut: 2000 },
-    { date: "May 29", caloriesIn: 2100, caloriesOut: 2200 },
-    { date: "May 30", caloriesIn: 1950, caloriesOut: 2150 },
-    { date: "May 31", caloriesIn: 2300, caloriesOut: 2400 },
-    { date: "Today", caloriesIn: 1450, caloriesOut: 1700 }
-  ];
+  appState.caloriesHistory = [];
+}
+if (!appState.metrics.sleepStages) {
+  appState.metrics.sleepStages = { deep: 0, rem: 0, light: 0, awake: 0 };
 }
 if (appState.visibleTiles && appState.visibleTiles.chart === undefined) {
   appState.visibleTiles.chart = true;
@@ -126,7 +117,8 @@ function initApp() {
     }
   });
 
-
+  // Refresh / Sync button
+  document.getElementById('btn-refresh-sync').addEventListener('click', handleRefreshSync);
 
   document.getElementById('btn-g-auth-url').addEventListener('click', openGoogleAuth);
   document.getElementById('btn-save-g-setup').addEventListener('click', saveGoogleSetup);
@@ -189,6 +181,9 @@ function initApp() {
 
   // Perform initial render
   renderDashboard();
+
+  // Update sync button status indicator
+  updateSyncStatus();
 
   // Try to sync with Google Health on startup if connected
   if (appState.googleOAuth && appState.googleOAuth.refreshToken) {
@@ -267,21 +262,76 @@ function animateRing(ringId, current, goal) {
   }
 }
 
-// 3. Sleep Details & Stages Breakdown Render
+// 3. Sleep Details & Stages Breakdown Render — FULLY DYNAMIC
 function updateSleepUI() {
   const tile = document.getElementById('tile-sleep');
   if (!tile) return;
 
   const hr = Math.floor(appState.metrics.sleepHours);
   const min = Math.round((appState.metrics.sleepHours - hr) * 60);
-  tile.querySelector('.card-body div div').innerText = `${hr}h ${min}m`;
-  tile.querySelector('strong').innerText = `${appState.metrics.sleepScore} (Good)`;
+  
+  const durationEl = tile.querySelector('.sleep-duration-value');
+  if (durationEl) durationEl.innerText = appState.metrics.sleepHours > 0 ? `${hr}h ${min}m` : '--';
+
+  const scoreEl = tile.querySelector('.sleep-score-value');
+  if (scoreEl) {
+    if (appState.metrics.sleepScore > 0) {
+      let quality = 'Fair';
+      if (appState.metrics.sleepScore >= 80) quality = 'Good';
+      if (appState.metrics.sleepScore >= 90) quality = 'Excellent';
+      if (appState.metrics.sleepScore < 60) quality = 'Poor';
+      scoreEl.innerHTML = `<strong style="color: var(--color-sleep)">${appState.metrics.sleepScore} (${quality})</strong>`;
+    } else {
+      scoreEl.innerHTML = `<strong style="color: var(--text-secondary)">-- (No Data)</strong>`;
+    }
+  }
+
+  // Dynamic sleep stage bar
+  const stages = appState.metrics.sleepStages || { deep: 0, rem: 0, light: 0, awake: 0 };
+  const totalStageMin = stages.deep + stages.rem + stages.light + stages.awake;
+  
+  const deepPct = totalStageMin > 0 ? Math.round((stages.deep / totalStageMin) * 100) : 0;
+  const remPct = totalStageMin > 0 ? Math.round((stages.rem / totalStageMin) * 100) : 0;
+  const lightPct = totalStageMin > 0 ? Math.round((stages.light / totalStageMin) * 100) : 0;
+  const awakePct = totalStageMin > 0 ? Math.round((stages.awake / totalStageMin) * 100) : 0;
+
+  const barContainer = tile.querySelector('.sleep-stage-bar');
+  if (barContainer) {
+    if (totalStageMin > 0) {
+      barContainer.innerHTML = `
+        <div class="stage-seg seg-deep" style="width: ${deepPct}%;" title="Deep: ${stages.deep}m"></div>
+        <div class="stage-seg seg-rem" style="width: ${remPct}%;" title="REM: ${stages.rem}m"></div>
+        <div class="stage-seg seg-light" style="width: ${lightPct}%;" title="Light: ${stages.light}m"></div>
+        <div class="stage-seg seg-awake" style="width: ${awakePct}%;" title="Awake: ${stages.awake}m"></div>
+      `;
+    } else {
+      barContainer.innerHTML = `<div class="stage-seg" style="width: 100%; background: rgba(255,255,255,0.1); border-radius: 12px;" title="No sleep data"></div>`;
+    }
+  }
+
+  const legendContainer = tile.querySelector('.sleep-legend');
+  if (legendContainer) {
+    if (totalStageMin > 0) {
+      legendContainer.innerHTML = `
+        <div class="legend-item"><span class="legend-dot seg-deep"></span><span>Deep (${deepPct}%)</span></div>
+        <div class="legend-item"><span class="legend-dot seg-rem"></span><span>REM (${remPct}%)</span></div>
+        <div class="legend-item"><span class="legend-dot seg-light"></span><span>Light (${lightPct}%)</span></div>
+        <div class="legend-item"><span class="legend-dot seg-awake"></span><span>Awake (${awakePct}%)</span></div>
+      `;
+    } else {
+      legendContainer.innerHTML = `
+        <div class="legend-item"><span class="legend-dot" style="background: rgba(255,255,255,0.15);"></span><span>No stage data logged</span></div>
+      `;
+    }
+  }
 }
 
 // 4. Stress management scores UI
 function updateStressUI() {
-  document.getElementById('stress-score').innerText = appState.metrics.stressScore;
-  document.getElementById('stress-status').innerText = appState.metrics.stressMood;
+  const scoreEl = document.getElementById('stress-score');
+  const statusEl = document.getElementById('stress-status');
+  if (scoreEl) scoreEl.innerText = appState.metrics.stressScore > 0 ? appState.metrics.stressScore : '--';
+  if (statusEl) statusEl.innerText = appState.metrics.stressMood || '--';
 }
 
 // 5. Caffeine tracker UI updates
@@ -401,9 +451,23 @@ function switchQuickModal(target) {
 function saveSleepLog() {
   const hours = parseFloat(document.getElementById('input-sleep-hours').value);
   const score = parseInt(document.getElementById('input-sleep-score').value);
+  const deepMin = parseInt(document.getElementById('input-sleep-deep').value) || 0;
+  const remMin = parseInt(document.getElementById('input-sleep-rem').value) || 0;
+  const lightMin = parseInt(document.getElementById('input-sleep-light').value) || 0;
+  const awakeMin = parseInt(document.getElementById('input-sleep-awake').value) || 0;
 
   if (!isNaN(hours) && hours > 0) appState.metrics.sleepHours = hours;
   if (!isNaN(score) && score > 0 && score <= 100) appState.metrics.sleepScore = score;
+  
+  // Update sleep stages if any were entered
+  if (deepMin > 0 || remMin > 0 || lightMin > 0 || awakeMin > 0) {
+    appState.metrics.sleepStages = {
+      deep: deepMin,
+      rem: remMin,
+      light: lightMin,
+      awake: awakeMin
+    };
+  }
 
   saveState();
   renderDashboard();
@@ -508,6 +572,16 @@ function updateChartUI() {
     caloriesChart.destroy();
   }
 
+  // If there's no history at all, show a placeholder message
+  if (appState.caloriesHistory.length === 0) {
+    // Draw empty state text on canvas
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '14px Outfit, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('No calorie history yet. Log food or use Quick Log to start tracking!', canvas.width / 2, canvas.height / 2);
+    return;
+  }
+
   // Calculate live dynamic Calories Out (burned) for Today:
   const workoutBurn = appState.workouts.reduce((sum, w) => sum + w.calories, 0);
   const totalBurn = appState.metrics.caloriesBurned + workoutBurn;
@@ -595,15 +669,92 @@ function saveChartHistoryLog() {
   }
 }
 
-// Google OAuth 2.0 Integration & Live Sync Flow
+// Refresh / Sync Handler
+async function handleRefreshSync() {
+  const btn = document.getElementById('btn-refresh-sync');
+  const icon = btn.querySelector('i');
+  
+  // Add spinning animation
+  icon.classList.add('fa-spin');
+  btn.disabled = true;
+
+  if (appState.googleOAuth && appState.googleOAuth.refreshToken) {
+    // Connected — re-sync from Google
+    try {
+      await syncGoogleHealthData();
+      showToast('✅ Data synced from Google Health!');
+    } catch (e) {
+      showToast('⚠️ Sync failed. Try reconnecting.');
+      console.error('Sync error:', e);
+    }
+  } else {
+    // Not connected — just refresh dashboard from local state
+    renderDashboard();
+    showToast('🔄 Dashboard refreshed from local data.');
+  }
+
+  // Stop spinning
+  setTimeout(() => {
+    icon.classList.remove('fa-spin');
+    btn.disabled = false;
+  }, 600);
+}
+
+// Update sync status indicator
+function updateSyncStatus() {
+  const btn = document.getElementById('btn-refresh-sync');
+  if (!btn) return;
+
+  if (appState.googleOAuth && appState.googleOAuth.refreshToken) {
+    btn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Sync';
+    btn.style.borderColor = 'var(--fitbit-teal)';
+    btn.style.color = 'var(--fitbit-teal)';
+    btn.title = 'Re-sync data from Google Health';
+  } else {
+    btn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Refresh';
+    btn.style.borderColor = 'var(--text-secondary)';
+    btn.style.color = 'var(--text-secondary)';
+    btn.title = 'Refresh dashboard from local data';
+  }
+}
+
+// Simple toast notification
+function showToast(message) {
+  // Remove any existing toast
+  const existingToast = document.querySelector('.toast-notification');
+  if (existingToast) existingToast.remove();
+
+  const toast = document.createElement('div');
+  toast.className = 'toast-notification';
+  toast.innerText = message;
+  document.body.appendChild(toast);
+
+  // Trigger show animation
+  requestAnimationFrame(() => {
+    toast.classList.add('show');
+  });
+
+  // Auto-hide after 3 seconds
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 400);
+  }, 3000);
+}
+
 // Google OAuth 2.0 Integration & Live Sync Flow
 function openGoogleAuth() {
   const clientId = document.getElementById('input-g-client-id').value.trim();
-  const redirectUriVal = document.getElementById('input-g-redirect-uri').value.trim() || 'http://localhost:5500';
+  const redirectUriVal = document.getElementById('input-g-redirect-uri').value.trim();
+  
   if (!clientId) {
     alert("Please enter your Google Client ID first!");
     return;
   }
+  if (!redirectUriVal) {
+    alert("Please enter the Redirect URI!");
+    return;
+  }
+
   const redirectUri = encodeURIComponent(redirectUriVal);
   // Request active fitness and nutrition scopes
   const scope = encodeURIComponent(
@@ -621,11 +772,15 @@ function openGoogleAuth() {
 async function saveGoogleSetup() {
   const clientId = document.getElementById('input-g-client-id').value.trim();
   const clientSecret = document.getElementById('input-g-client-secret').value.trim();
-  const redirectUriVal = document.getElementById('input-g-redirect-uri').value.trim() || 'http://localhost:5500';
+  const redirectUriVal = document.getElementById('input-g-redirect-uri').value.trim();
   let authInput = document.getElementById('input-g-auth-code').value.trim();
   
   if (!clientId || !clientSecret || !authInput) {
     alert("Please fill in Client ID, Client Secret, and paste the Authorization Code or redirected URL!");
+    return;
+  }
+  if (!redirectUriVal) {
+    alert("Please enter the Redirect URI!");
     return;
   }
 
@@ -668,6 +823,7 @@ async function saveGoogleSetup() {
 
 
     saveState();
+    updateSyncStatus();
     alert("Successfully connected to Google Health! Syncing data...");
     closeLogModal();
     syncGoogleHealthData();
@@ -726,7 +882,7 @@ async function syncGoogleHealthData() {
 
   try {
     // Fetch aggregated steps count from Google Fitness aggregate endpoint
-    const stepsResponse = await fetch('https://www.googleapis.com/fitness/v1/users/me/dataset/aggregate', {
+    const stepsResponse = await fetch('https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
@@ -737,7 +893,7 @@ async function syncGoogleHealthData() {
           dataTypeName: "com.google.step_count.delta",
           dataSourceId: "derived:com.google.step_count.delta:com.google.android.gms:estimated_steps"
         }],
-        bucketByTime: { durationMillis: (now - todayStart.getTime()) },
+        bucketByTime: { durationMillis: (now - todayStart.getTime()) || 86400000 },
         startTimeMillis: todayStart.getTime(),
         endTimeMillis: now
       })
@@ -747,13 +903,83 @@ async function syncGoogleHealthData() {
     if (stepsData.bucket && stepsData.bucket[0] && stepsData.bucket[0].dataset[0].point[0]) {
       const stepVal = stepsData.bucket[0].dataset[0].point[0].value[0].intVal;
       appState.metrics.steps = stepVal;
-      appState.metrics.distance = stepVal * 0.00047; // approx miles conversion
-      saveState();
-      renderDashboard();
+      appState.metrics.distance = parseFloat((stepVal * 0.00047).toFixed(2)); // approx miles conversion
     }
   } catch (e) {
     console.error("Error syncing steps: ", e);
   }
+
+  try {
+    // Fetch calories burned
+    const caloriesResponse = await fetch('https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        aggregateBy: [{
+          dataTypeName: "com.google.calories.expended",
+          dataSourceId: "derived:com.google.calories.expended:com.google.android.gms:merge_calories_expended"
+        }],
+        bucketByTime: { durationMillis: (now - todayStart.getTime()) || 86400000 },
+        startTimeMillis: todayStart.getTime(),
+        endTimeMillis: now
+      })
+    });
+
+    const caloriesData = await caloriesResponse.json();
+    if (caloriesData.bucket && caloriesData.bucket[0] && caloriesData.bucket[0].dataset[0].point[0]) {
+      const calVal = Math.round(caloriesData.bucket[0].dataset[0].point[0].value[0].fpVal);
+      appState.metrics.caloriesBurned = calVal;
+    }
+  } catch (e) {
+    console.error("Error syncing calories: ", e);
+  }
+
+  try {
+    // Fetch active minutes (move minutes)
+    const activeResponse = await fetch('https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        aggregateBy: [{
+          dataTypeName: "com.google.active_minutes",
+          dataSourceId: "derived:com.google.active_minutes:com.google.android.gms:merge_active_minutes"
+        }],
+        bucketByTime: { durationMillis: (now - todayStart.getTime()) || 86400000 },
+        startTimeMillis: todayStart.getTime(),
+        endTimeMillis: now
+      })
+    });
+
+    const activeData = await activeResponse.json();
+    if (activeData.bucket && activeData.bucket[0] && activeData.bucket[0].dataset[0].point[0]) {
+      const activeVal = activeData.bucket[0].dataset[0].point[0].value[0].intVal;
+      appState.metrics.activeMin = activeVal;
+    }
+  } catch (e) {
+    console.error("Error syncing active minutes: ", e);
+  }
+
+  // Ensure Today entry exists in calories history for chart
+  let todayRecord = appState.caloriesHistory.find(d => d.date === "Today");
+  if (!todayRecord) {
+    appState.caloriesHistory.push({
+      date: "Today",
+      caloriesIn: appState.metrics.foodCalories,
+      caloriesOut: appState.metrics.caloriesBurned
+    });
+  } else {
+    todayRecord.caloriesOut = appState.metrics.caloriesBurned;
+    todayRecord.caloriesIn = appState.metrics.foodCalories;
+  }
+
+  saveState();
+  renderDashboard();
 }
 
 // Pro Key Verification & Card Gating
@@ -837,6 +1063,3 @@ function applyProOverlays() {
     }
   });
 }
-
-
-

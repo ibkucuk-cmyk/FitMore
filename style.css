@@ -719,4 +719,37 @@ input:checked + .slider:before {
   line-height: 1.3;
 }
 
+/* Toast Notification */
+.toast-notification {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--bg-dark-card);
+  border: 1px solid var(--fitbit-teal);
+  color: var(--text-primary);
+  padding: 0.8rem 1.5rem;
+  border-radius: 14px;
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  font-weight: 500;
+  opacity: 0;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 10000;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 8px 32px rgba(0, 176, 185, 0.15);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.toast-notification.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Refresh button disabled state */
+#btn-refresh-sync:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 

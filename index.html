@@ -20,6 +20,9 @@
       <h1 class="logo-text">fitbit <span class="legacy-badge">Classic</span></h1>
     </div>
     <div class="header-actions">
+      <button class="btn" id="btn-refresh-sync" style="border-color: var(--text-secondary); color: var(--text-secondary); font-weight:600;" aria-label="Refresh or sync data">
+        <i class="fa-solid fa-arrows-rotate"></i> Refresh
+      </button>
       <button class="btn" id="btn-pro-unlock" style="border-color: var(--color-active); color: var(--color-active); font-weight:600;" aria-label="Activate FitMore Pro version">
         <i class="fa-solid fa-crown"></i> Get Pro
       </button>
@@ -50,7 +53,7 @@
       </div>
       <div class="ring-info">
         <span class="ring-title">Steps</span>
-        <span class="ring-value" id="val-steps">7,854</span>
+        <span class="ring-value" id="val-steps">0</span>
         <span class="ring-target" id="target-steps">of 10,000 steps</span>
       </div>
     </div>
@@ -66,7 +69,7 @@
       </div>
       <div class="ring-info">
         <span class="ring-title">Calories</span>
-        <span class="ring-value" id="val-calories">1,450</span>
+        <span class="ring-value" id="val-calories">0</span>
         <span class="ring-target" id="target-calories">of 2,200 kcal</span>
       </div>
     </div>
@@ -82,7 +85,7 @@
       </div>
       <div class="ring-info">
         <span class="ring-title">Distance</span>
-        <span class="ring-value" id="val-distance">3.4 mi</span>
+        <span class="ring-value" id="val-distance">0.0 mi</span>
         <span class="ring-target" id="target-distance">of 5.0 mi</span>
       </div>
     </div>
@@ -98,7 +101,7 @@
       </div>
       <div class="ring-info">
         <span class="ring-title">Active Zone Min</span>
-        <span class="ring-value" id="val-active">22</span>
+        <span class="ring-value" id="val-active">0</span>
         <span class="ring-target" id="target-active">of 30 min</span>
       </div>
     </div>
@@ -118,35 +121,17 @@
         </div>
         <div class="card-body">
           <div>
-            <div style="font-size: 1.8rem; font-weight: 700;">7h 24m</div>
-            <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Sleep Score: <strong style="color: var(--color-sleep)">82 (Good)</strong></div>
+            <div class="sleep-duration-value" style="font-size: 1.8rem; font-weight: 700;">--</div>
+            <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Sleep Score: <span class="sleep-score-value"><strong style="color: var(--text-secondary)">-- (No Data)</strong></span></div>
           </div>
           <div class="sleep-stages-container">
-            <!-- Graphical Bar Representation -->
+            <!-- Dynamic Sleep Stage Bar -->
             <div class="sleep-stage-bar">
-              <div class="stage-seg seg-deep" style="width: 15%;" title="Deep: 1h 6m"></div>
-              <div class="stage-seg seg-rem" style="width: 22%;" title="REM: 1h 38m"></div>
-              <div class="stage-seg seg-light" style="width: 53%;" title="Light: 3h 55m"></div>
-              <div class="stage-seg seg-awake" style="width: 10%;" title="Awake: 45m"></div>
+              <div class="stage-seg" style="width: 100%; background: rgba(255,255,255,0.1); border-radius: 12px;" title="No sleep data"></div>
             </div>
-            <!-- Interactive Sleep Stages Legend -->
+            <!-- Dynamic Sleep Stages Legend -->
             <div class="sleep-legend">
-              <div class="legend-item">
-                <span class="legend-dot seg-deep"></span>
-                <span>Deep (15%)</span>
-              </div>
-              <div class="legend-item">
-                <span class="legend-dot seg-rem"></span>
-                <span>REM (22%)</span>
-              </div>
-              <div class="legend-item">
-                <span class="legend-dot seg-light"></span>
-                <span>Light (53%)</span>
-              </div>
-              <div class="legend-item">
-                <span class="legend-dot seg-awake"></span>
-                <span>Awake (10%)</span>
-              </div>
+              <div class="legend-item"><span class="legend-dot" style="background: rgba(255,255,255,0.15);"></span><span>No stage data logged</span></div>
             </div>
           </div>
         </div>
@@ -163,11 +148,11 @@
         <div class="card-body">
           <div class="stress-score-display">
             <div class="stress-dial-bg">
-              <span class="stress-value-big" id="stress-score">78</span>
+              <span class="stress-value-big" id="stress-score">--</span>
             </div>
           </div>
           <div>
-            <div class="stress-status" id="stress-status">Calm & Balanced</div>
+            <div class="stress-status" id="stress-status">--</div>
             <div style="font-size: 0.8rem; color: var(--text-secondary); text-align: center; margin-top: 0.2rem;">
               Based on sleep, activity balance, and heart rate variability.
             </div>
@@ -185,13 +170,13 @@
         </div>
         <div class="card-body">
           <div>
-            <div style="font-size: 1.8rem; font-weight: 700;" id="txt-caffeine">250 mg</div>
+            <div style="font-size: 1.8rem; font-weight: 700;" id="txt-caffeine">0 mg</div>
             <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Daily recommendation: max 400 mg</div>
           </div>
           <!-- Clickable Cup visual indicators -->
           <div class="caffeine-visualizer" id="caffeine-cups">
-            <i class="fa-solid fa-cup-togo coffee-cup-icon filled" data-cup="1"></i>
-            <i class="fa-solid fa-cup-togo coffee-cup-icon filled" data-cup="2"></i>
+            <i class="fa-solid fa-cup-togo coffee-cup-icon" data-cup="1"></i>
+            <i class="fa-solid fa-cup-togo coffee-cup-icon" data-cup="2"></i>
             <i class="fa-solid fa-cup-togo coffee-cup-icon" data-cup="3"></i>
             <i class="fa-solid fa-cup-togo coffee-cup-icon" data-cup="4"></i>
             <i class="fa-solid fa-cup-togo coffee-cup-icon" data-cup="5"></i>
@@ -215,7 +200,7 @@
           <div>
             <div class="stats-row">
               <span style="color: var(--text-secondary);">Logged</span>
-              <strong id="food-logged">1,450 kcal</strong>
+              <strong id="food-logged">0 kcal</strong>
             </div>
             <div class="stats-row">
               <span style="color: var(--text-secondary);">Goal Budget</span>
@@ -223,7 +208,7 @@
             </div>
             <div class="stats-row">
               <span style="color: var(--text-secondary);">Remaining</span>
-              <strong style="color: var(--color-food);" id="food-remaining">750 kcal</strong>
+              <strong style="color: var(--color-food);" id="food-remaining">2,200 kcal</strong>
             </div>
           </div>
           <div class="quick-log-row">
@@ -281,15 +266,15 @@
         </div>
         <div class="card-body">
           <div>
-            <div style="font-size: 1.8rem; font-weight: 700;" id="txt-water">32 oz</div>
+            <div style="font-size: 1.8rem; font-weight: 700;" id="txt-water">0 oz</div>
             <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Goal: 64 oz</div>
           </div>
           <div style="display: flex; gap: 0.5rem; justify-content: center; font-size: 1.5rem; color: var(--color-distance); padding: 0.5rem 0;" id="water-bottles">
             <!-- Interactive glasses representation -->
-            <i class="fa-solid fa-glass-water" style="cursor:pointer;" data-water="8"></i>
-            <i class="fa-solid fa-glass-water" style="cursor:pointer;" data-water="16"></i>
-            <i class="fa-solid fa-glass-water" style="cursor:pointer;" data-water="24"></i>
-            <i class="fa-solid fa-glass-water" style="cursor:pointer;" data-water="32"></i>
+            <i class="fa-solid fa-glass-water" style="opacity: 0.25; cursor:pointer;" data-water="8"></i>
+            <i class="fa-solid fa-glass-water" style="opacity: 0.25; cursor:pointer;" data-water="16"></i>
+            <i class="fa-solid fa-glass-water" style="opacity: 0.25; cursor:pointer;" data-water="24"></i>
+            <i class="fa-solid fa-glass-water" style="opacity: 0.25; cursor:pointer;" data-water="32"></i>
             <i class="fa-solid fa-glass-water" style="opacity: 0.25; cursor:pointer;" data-water="40"></i>
             <i class="fa-solid fa-glass-water" style="opacity: 0.25; cursor:pointer;" data-water="48"></i>
             <i class="fa-solid fa-glass-water" style="opacity: 0.25; cursor:pointer;" data-water="56"></i>
@@ -379,6 +364,25 @@
       <div class="modal-form-group">
         <label for="input-sleep-score">Sleep Score (1-100)</label>
         <input type="number" id="input-sleep-score" placeholder="e.g. 85" min="1" max="100">
+      </div>
+      <div style="padding: 0.5rem 0 0.2rem; font-size: 0.85rem; color: var(--color-sleep); font-weight: 600;">Sleep Stages (minutes)</div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+        <div class="modal-form-group">
+          <label for="input-sleep-deep">Deep</label>
+          <input type="number" id="input-sleep-deep" placeholder="e.g. 60" min="0">
+        </div>
+        <div class="modal-form-group">
+          <label for="input-sleep-rem">REM</label>
+          <input type="number" id="input-sleep-rem" placeholder="e.g. 90" min="0">
+        </div>
+        <div class="modal-form-group">
+          <label for="input-sleep-light">Light</label>
+          <input type="number" id="input-sleep-light" placeholder="e.g. 200" min="0">
+        </div>
+        <div class="modal-form-group">
+          <label for="input-sleep-awake">Awake</label>
+          <input type="number" id="input-sleep-awake" placeholder="e.g. 30" min="0">
+        </div>
       </div>
       <div class="modal-buttons">
         <button class="btn" onclick="closeLogModal()">Cancel</button>
@@ -518,7 +522,7 @@
 
       <div class="modal-form-group">
         <label for="input-g-redirect-uri">Authorized Redirect URI</label>
-        <input type="text" id="input-g-redirect-uri" placeholder="e.g. http://localhost:5500" value="http://localhost:5500">
+        <input type="text" id="input-g-redirect-uri" placeholder="Auto-detected from current URL">
       </div>
 
       <div class="modal-form-group" style="background: rgba(255,255,255,0.03); padding: 0.75rem; border-radius: 12px; font-size: 0.8rem; line-height: 1.4;">
