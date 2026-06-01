@@ -112,12 +112,20 @@ function initApp() {
   // Google Setup Modal Trigger
   document.getElementById('btn-google-setup').addEventListener('click', () => {
     openLogModal('google-setup');
+    
+    // Automatically detect and structure the exact current website URL as the default redirect
+    let defaultRedirect = window.location.origin + window.location.pathname;
+    if (!defaultRedirect.endsWith('/')) {
+      defaultRedirect += '/';
+    }
+
     if (appState.googleOAuth) {
       document.getElementById('input-g-client-id').value = appState.googleOAuth.clientId || '';
       document.getElementById('input-g-client-secret').value = appState.googleOAuth.clientSecret || '';
-      document.getElementById('input-g-redirect-uri').value = appState.googleOAuth.redirectUri || 'http://localhost:5500';
+      document.getElementById('input-g-redirect-uri').value = appState.googleOAuth.redirectUri || defaultRedirect;
     }
   });
+
 
 
   document.getElementById('btn-g-auth-url').addEventListener('click', openGoogleAuth);
