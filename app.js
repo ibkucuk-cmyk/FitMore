@@ -720,12 +720,14 @@ function updateSyncStatus() {
   if (!btn) return;
 
   const isConnected = appState.googleOAuth && (appState.googleOAuth.accessToken || appState.googleOAuth.refreshToken);
+  const email = appState.googleOAuth?.connectedEmail;
   
   if (isConnected) {
-    btn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Sync';
+    const emailLabel = email ? ` (${email.split('@')[0]})` : '';
+    btn.innerHTML = `<i class="fa-solid fa-arrows-rotate"></i> Sync${emailLabel}`;
     btn.style.borderColor = 'var(--fitbit-teal)';
     btn.style.color = 'var(--fitbit-teal)';
-    btn.title = 'Re-sync data from Google Health';
+    btn.title = email ? `Connected as ${email} — click to re-sync` : 'Re-sync data from Google Health';
   } else {
     btn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Refresh';
     btn.style.borderColor = 'var(--text-secondary)';
@@ -820,9 +822,11 @@ async function autoExchangeAuthCode(code) {
     updateSyncStatus();
     showToast('✅ Connected! Syncing your health data...');
     
+    // Fetch and display connected account info
+    await fetchAndDisplayConnectedAccount();
+    
     // Now sync the actual health data
     await syncGoogleHealthData();
-    showToast('✅ Health data synced successfully!');
 
   } catch (err) {
     console.error('[FitMore] Auto-exchange error:', err);
@@ -857,15 +861,14 @@ function openGoogleAuth() {
 
   const redirectUri = encodeURIComponent(redirectUriVal);
   
-  // Request Google Health API scopes (covers Fitbit data after migration)
-  // PLUS legacy Google Fitness scopes as fallback for users who haven't migrated
+  // Request all Google Fitness API scopes needed for full data access
+  // Each scope covers specific data types — missing scopes cause 403 errors
   const scope = encodeURIComponent(
     "https://www.googleapis.com/auth/userinfo.profile " +
-    "https://www.googleapis.com/auth/googlehealth.activity_and_fitness.readonly " +
-    "https://www.googleapis.com/auth/googlehealth.sleep.readonly " +
-    "https://www.googleapis.com/auth/googlehealth.nutrition.readonly " +
-    "https://www.googleapis.com/auth/googlehealth.health_metrics_and_measurements.readonly " +
+    "https://www.googleapis.com/auth/userinfo.email " +
     "https://www.googleapis.com/auth/fitness.activity.read " +
+    "https://www.googleapis.com/auth/fitness.body.read " +
+    "https://www.googleapis.com/auth/fitness.location.read " +
     "https://www.googleapis.com/auth/fitness.sleep.read " +
     "https://www.googleapis.com/auth/fitness.nutrition.read"
   );
@@ -986,6 +989,30 @@ async function ensureValidAccessToken() {
   }
 }
 
+// Fetch and show which Google account is connected
+async function fetchAndDisplayConnectedAccount() {
+  const accessToken = appState.googleOAuth.accessToken;
+  if (!accessToken) return;
+
+  try {
+    const resp = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    });
+    const profile = await resp.json();
+    console.log('[FitMore] Connected Google account:', profile.email || profile.name || 'unknown');
+    
+    // Store for display
+    appState.googleOAuth.connectedEmail = profile.email || '';
+    appState.googleOAuth.connectedName = profile.name || '';
+    saveState();
+    
+    // Update UI to show connected account
+    updateSyncStatus();
+  } catch (e) {
+    console.warn('[FitMore] Could not fetch account info:', e.message);
+  }
+}
+
 // Main sync dispatcher — tries Fitness API with robust parsing and diagnostics
 async function syncGoogleHealthData() {
   const isValid = await ensureValidAccessToken();
@@ -997,6 +1024,11 @@ async function syncGoogleHealthData() {
   console.log("[FitMore] ========== STARTING HEALTH DATA SYNC ==========");
   console.log("[FitMore] Access token:", appState.googleOAuth.accessToken ? appState.googleOAuth.accessToken.substring(0, 25) + '...' : 'MISSING');
   console.log("[FitMore] Token expiry:", new Date(appState.googleOAuth.tokenExpiry).toLocaleString());
+  
+  // Fetch account info if we don't have it yet
+  if (!appState.googleOAuth.connectedEmail) {
+    await fetchAndDisplayConnectedAccount();
+  }
 
   // Step 1: Discover what data sources exist in this account
   await discoverDataSources();
@@ -1029,13 +1061,68 @@ async function syncGoogleHealthData() {
     console.log("[FitMore] ✅ Sync complete with data! Steps:", appState.metrics.steps, "Calories:", appState.metrics.caloriesBurned);
     showToast(`✅ Synced! ${appState.metrics.steps.toLocaleString()} steps, ${appState.metrics.caloriesBurned.toLocaleString()} cal burned`);
   } else {
-    console.warn("[FitMore] ⚠️ Sync completed but NO data points were found.");
-    console.warn("[FitMore] This usually means:");
-    console.warn("[FitMore]   1. No Fitbit/Google Fit data exists for today yet (try wearing your device and walking)");
-    console.warn("[FitMore]   2. Fitbit data hasn't synced to Google Fit (open Fitbit app → sync → then try again)");
-    console.warn("[FitMore]   3. The Google account doesn't have any fitness data sources connected");
-    console.warn("[FitMore] Check the data sources listed above ☝️ — if the list is empty, no device is syncing to this Google account.");
-    showToast('⚠️ Connected but no fitness data found. See console (F12) for details.');
+    console.warn("[FitMore] ⚠️ Sync completed but NO data points were found for today.");
+    
+    // Auto-check last 7 days to determine if the account has ANY historical data
+    const email = appState.googleOAuth.connectedEmail || 'unknown';
+    console.log(`[FitMore] 🔍 Checking last 7 days of step data to diagnose (account: ${email})...`);
+    
+    try {
+      const accessToken = appState.googleOAuth.accessToken;
+      const now = Date.now();
+      const weekAgo = now - (7 * 86400000);
+      
+      const resp = await fetch('https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          aggregateBy: [{ dataTypeName: "com.google.step_count.delta" }],
+          bucketByTime: { durationMillis: 86400000 }, // 1 day per bucket
+          startTimeMillis: weekAgo,
+          endTimeMillis: now
+        })
+      });
+      
+      const data = await resp.json();
+      let daysWithData = 0;
+      let totalHistoricalSteps = 0;
+      
+      if (data.bucket) {
+        data.bucket.forEach(bucket => {
+          let daySteps = 0;
+          bucket.dataset?.forEach(ds => {
+            ds.point?.forEach(pt => {
+              pt.value?.forEach(v => {
+                daySteps += (v.intVal || 0);
+              });
+            });
+          });
+          if (daySteps > 0) {
+            daysWithData++;
+            totalHistoricalSteps += daySteps;
+            const dayDate = new Date(parseInt(bucket.startTimeMillis));
+            console.log(`[FitMore]   📅 ${dayDate.toLocaleDateString()}: ${daySteps.toLocaleString()} steps`);
+          }
+        });
+      }
+      
+      if (daysWithData > 0) {
+        console.log(`[FitMore] ✅ Found historical data! ${daysWithData} day(s) with ${totalHistoricalSteps.toLocaleString()} total steps in the last week.`);
+        console.log(`[FitMore] Today just has no data yet. The phone (Samsung SM-G970U) may not have synced today.`);
+        showToast(`⚠️ No data for today yet. Account "${email}" has ${daysWithData} recent day(s) of data.`);
+      } else {
+        console.warn(`[FitMore] ❌ NO historical data found in the last 7 days either!`);
+        console.warn(`[FitMore] 💡 This strongly suggests "${email}" is NOT the account with Fitbit data.`);
+        console.warn(`[FitMore] Ask your friend to check which Google account their Fitbit app is linked to.`);
+        showToast(`⚠️ Account "${email}" has no fitness data. Likely wrong Google account.`);
+      }
+    } catch (e) {
+      console.error("[FitMore] Historical check failed:", e.message);
+      showToast('⚠️ Connected but no fitness data found. Check console (F12).');
+    }
   }
   console.log("[FitMore] ========== SYNC FINISHED ==========");
 }
