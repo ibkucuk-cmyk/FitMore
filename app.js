@@ -185,6 +185,17 @@ function initApp() {
   // Update sync button status indicator
   updateSyncStatus();
 
+  // AUTO-DETECT: Check if Google redirected back with ?code= in the URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const authCode = urlParams.get('code');
+  if (authCode) {
+    console.log('[FitMore] Detected auth code in URL! Auto-exchanging...');
+    autoExchangeAuthCode(authCode);
+    // Clean the URL (remove ?code=... so it doesn't re-trigger)
+    window.history.replaceState({}, document.title, window.location.pathname);
+    return; // Don't auto-sync yet, the exchange will trigger sync
+  }
+
   // Try to sync with Google Health on startup if connected
   if (appState.googleOAuth && (appState.googleOAuth.accessToken || appState.googleOAuth.refreshToken)) {
     console.log('[FitMore] Connected on startup — auto-syncing...');
@@ -751,18 +762,98 @@ function showToast(message) {
 // the old Google Fitness API AND the legacy Fitbit Web API.
 // Fitbit device data syncs through this API after users migrate to Google accounts.
 
+// AUTO-EXCHANGE: Called when the page loads with ?code= in the URL after Google redirect
+async function autoExchangeAuthCode(code) {
+  const oauth = appState.googleOAuth;
+  
+  if (!oauth || !oauth.clientId || !oauth.clientSecret) {
+    console.error('[FitMore] Cannot auto-exchange: missing saved client credentials.');
+    showToast('⚠️ Missing credentials. Please re-enter via Connect Health.');
+    return;
+  }
+
+  const redirectUri = oauth.redirectUri || (window.location.origin + window.location.pathname);
+  
+  console.log('[FitMore] Auto-exchanging auth code for tokens...');
+  console.log('[FitMore] Using clientId:', oauth.clientId.substring(0, 20) + '...');
+  console.log('[FitMore] Using redirectUri:', redirectUri);
+
+  showToast('🔄 Connecting to Google Health...');
+
+  try {
+    const response = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: oauth.clientId,
+        client_secret: oauth.clientSecret,
+        code: code,
+        grant_type: 'authorization_code',
+        redirect_uri: redirectUri
+      })
+    });
+
+    const data = await response.json();
+    console.log('[FitMore] Auto-exchange response:', JSON.stringify(data));
+
+    if (data.error) {
+      console.error('[FitMore] Token exchange failed:', data.error, data.error_description);
+      showToast('❌ Auth failed: ' + (data.error_description || data.error));
+      return;
+    }
+
+    // Log what we got
+    console.log('[FitMore] access_token:', data.access_token ? 'YES' : 'MISSING');
+    console.log('[FitMore] refresh_token:', data.refresh_token ? 'YES' : 'MISSING');
+    console.log('[FitMore] scope:', data.scope);
+
+    appState.googleOAuth = {
+      clientId: oauth.clientId,
+      clientSecret: oauth.clientSecret,
+      redirectUri: redirectUri,
+      accessToken: data.access_token || '',
+      refreshToken: data.refresh_token || oauth.refreshToken || '',
+      tokenExpiry: Date.now() + ((data.expires_in || 3600) * 1000)
+    };
+
+    saveState();
+    updateSyncStatus();
+    showToast('✅ Connected! Syncing your health data...');
+    
+    // Now sync the actual health data
+    await syncGoogleHealthData();
+    showToast('✅ Health data synced successfully!');
+
+  } catch (err) {
+    console.error('[FitMore] Auto-exchange error:', err);
+    showToast('❌ Connection failed: ' + err.message);
+  }
+}
+
 function openGoogleAuth() {
   const clientId = document.getElementById('input-g-client-id').value.trim();
+  const clientSecret = document.getElementById('input-g-client-secret').value.trim();
   const redirectUriVal = document.getElementById('input-g-redirect-uri').value.trim();
   
   if (!clientId) {
     alert("Please enter your Google Client ID first!");
     return;
   }
+  if (!clientSecret) {
+    alert("Please enter your Client Secret! It's needed after Google redirects back.");
+    return;
+  }
   if (!redirectUriVal) {
     alert("Please enter the Redirect URI!");
     return;
   }
+
+  // SAVE credentials to state BEFORE redirect so they survive the page reload
+  appState.googleOAuth.clientId = clientId;
+  appState.googleOAuth.clientSecret = clientSecret;
+  appState.googleOAuth.redirectUri = redirectUriVal;
+  saveState();
+  console.log('[FitMore] Saved credentials before redirect. ClientID:', clientId.substring(0, 20) + '...');
 
   const redirectUri = encodeURIComponent(redirectUriVal);
   
@@ -781,7 +872,9 @@ function openGoogleAuth() {
   
   const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&access_type=offline&prompt=consent`;
   
-  window.open(authUrl, '_blank');
+  // Redirect in the SAME window — Google will redirect back to our app with ?code=
+  // The app will auto-detect the code on reload and exchange it.
+  window.location.href = authUrl;
 }
 
 async function saveGoogleSetup() {
