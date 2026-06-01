@@ -742,6 +742,10 @@ function showToast(message) {
 }
 
 // Google OAuth 2.0 Integration & Live Sync Flow
+// Uses the NEW Google Health API v4 (health.googleapis.com) which replaces both 
+// the old Google Fitness API AND the legacy Fitbit Web API.
+// Fitbit device data syncs through this API after users migrate to Google accounts.
+
 function openGoogleAuth() {
   const clientId = document.getElementById('input-g-client-id').value.trim();
   const redirectUriVal = document.getElementById('input-g-redirect-uri').value.trim();
@@ -756,9 +760,15 @@ function openGoogleAuth() {
   }
 
   const redirectUri = encodeURIComponent(redirectUriVal);
-  // Request active fitness and nutrition scopes
+  
+  // Request Google Health API scopes (covers Fitbit data after migration)
+  // PLUS legacy Google Fitness scopes as fallback for users who haven't migrated
   const scope = encodeURIComponent(
     "https://www.googleapis.com/auth/userinfo.profile " +
+    "https://www.googleapis.com/auth/googlehealth.activity_and_fitness.readonly " +
+    "https://www.googleapis.com/auth/googlehealth.sleep.readonly " +
+    "https://www.googleapis.com/auth/googlehealth.nutrition.readonly " +
+    "https://www.googleapis.com/auth/googlehealth.health_metrics_and_measurements.readonly " +
     "https://www.googleapis.com/auth/fitness.activity.read " +
     "https://www.googleapis.com/auth/fitness.sleep.read " +
     "https://www.googleapis.com/auth/fitness.nutrition.read"
@@ -804,9 +814,9 @@ async function saveGoogleSetup() {
       })
     });
 
-
-
     const data = await response.json();
+    console.log("Token exchange response:", data);
+    
     if (data.error) {
       alert("Error exchanging code: " + (data.error_description || data.error));
       return;
@@ -820,7 +830,6 @@ async function saveGoogleSetup() {
       refreshToken: data.refresh_token || (appState.googleOAuth ? appState.googleOAuth.refreshToken : ''),
       tokenExpiry: Date.now() + (data.expires_in * 1000)
     };
-
 
     saveState();
     updateSyncStatus();
@@ -841,7 +850,7 @@ async function ensureValidAccessToken() {
     return true;
   }
 
-  console.log("Access token expired or expiring soon. Refreshing...");
+  console.log("[FitMore] Access token expired or expiring soon. Refreshing...");
   try {
     const response = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
@@ -856,113 +865,48 @@ async function ensureValidAccessToken() {
 
     const data = await response.json();
     if (data.error) {
-      console.error("Failed to refresh token: " + data.error);
+      console.error("[FitMore] Failed to refresh token:", data.error, data.error_description);
       return false;
     }
 
     oauth.accessToken = data.access_token;
     oauth.tokenExpiry = Date.now() + (data.expires_in * 1000);
     saveState();
+    console.log("[FitMore] Token refreshed successfully.");
     return true;
   } catch (err) {
-    console.error("Token refresh call failed: ", err);
+    console.error("[FitMore] Token refresh call failed:", err);
     return false;
   }
 }
 
+// Main sync dispatcher — tries Google Health API v4 first, then falls back to Google Fitness API
 async function syncGoogleHealthData() {
   const isValid = await ensureValidAccessToken();
-  if (!isValid) return;
-
-  const accessToken = appState.googleOAuth.accessToken;
-  const now = Date.now();
-  // Get start of today (midnight)
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-
-  try {
-    // Fetch aggregated steps count from Google Fitness aggregate endpoint
-    const stepsResponse = await fetch('https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        aggregateBy: [{
-          dataTypeName: "com.google.step_count.delta",
-          dataSourceId: "derived:com.google.step_count.delta:com.google.android.gms:estimated_steps"
-        }],
-        bucketByTime: { durationMillis: (now - todayStart.getTime()) || 86400000 },
-        startTimeMillis: todayStart.getTime(),
-        endTimeMillis: now
-      })
-    });
-
-    const stepsData = await stepsResponse.json();
-    if (stepsData.bucket && stepsData.bucket[0] && stepsData.bucket[0].dataset[0].point[0]) {
-      const stepVal = stepsData.bucket[0].dataset[0].point[0].value[0].intVal;
-      appState.metrics.steps = stepVal;
-      appState.metrics.distance = parseFloat((stepVal * 0.00047).toFixed(2)); // approx miles conversion
-    }
-  } catch (e) {
-    console.error("Error syncing steps: ", e);
+  if (!isValid) {
+    showToast('⚠️ Token invalid. Please reconnect via Connect Health.');
+    return;
   }
 
-  try {
-    // Fetch calories burned
-    const caloriesResponse = await fetch('https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        aggregateBy: [{
-          dataTypeName: "com.google.calories.expended",
-          dataSourceId: "derived:com.google.calories.expended:com.google.android.gms:merge_calories_expended"
-        }],
-        bucketByTime: { durationMillis: (now - todayStart.getTime()) || 86400000 },
-        startTimeMillis: todayStart.getTime(),
-        endTimeMillis: now
-      })
-    });
+  console.log("[FitMore] Starting health data sync...");
+  let synced = false;
 
-    const caloriesData = await caloriesResponse.json();
-    if (caloriesData.bucket && caloriesData.bucket[0] && caloriesData.bucket[0].dataset[0].point[0]) {
-      const calVal = Math.round(caloriesData.bucket[0].dataset[0].point[0].value[0].fpVal);
-      appState.metrics.caloriesBurned = calVal;
-    }
+  // Strategy 1: Try Google Health API v4 (new, covers Fitbit data)
+  try {
+    synced = await syncViaGoogleHealthAPIv4();
   } catch (e) {
-    console.error("Error syncing calories: ", e);
+    console.warn("[FitMore] Google Health API v4 failed, falling back to Fitness API:", e.message);
   }
 
-  try {
-    // Fetch active minutes (move minutes)
-    const activeResponse = await fetch('https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        aggregateBy: [{
-          dataTypeName: "com.google.active_minutes",
-          dataSourceId: "derived:com.google.active_minutes:com.google.android.gms:merge_active_minutes"
-        }],
-        bucketByTime: { durationMillis: (now - todayStart.getTime()) || 86400000 },
-        startTimeMillis: todayStart.getTime(),
-        endTimeMillis: now
-      })
-    });
-
-    const activeData = await activeResponse.json();
-    if (activeData.bucket && activeData.bucket[0] && activeData.bucket[0].dataset[0].point[0]) {
-      const activeVal = activeData.bucket[0].dataset[0].point[0].value[0].intVal;
-      appState.metrics.activeMin = activeVal;
+  // Strategy 2: Fall back to Google Fitness REST API (legacy, no hardcoded data source IDs)
+  if (!synced) {
+    console.log("[FitMore] Trying Google Fitness API fallback...");
+    try {
+      await syncViaGoogleFitnessAPI();
+      synced = true;
+    } catch (e) {
+      console.error("[FitMore] Google Fitness API also failed:", e.message);
     }
-  } catch (e) {
-    console.error("Error syncing active minutes: ", e);
   }
 
   // Ensure Today entry exists in calories history for chart
@@ -980,6 +924,201 @@ async function syncGoogleHealthData() {
 
   saveState();
   renderDashboard();
+
+  if (synced) {
+    console.log("[FitMore] Sync complete. Steps:", appState.metrics.steps, "Calories:", appState.metrics.caloriesBurned);
+  } else {
+    showToast('⚠️ Could not fetch health data. Check console (F12) for details.');
+  }
+}
+
+// ---- Strategy 1: Google Health API v4 (health.googleapis.com) ----
+// This is the NEW API that replaces both Fitbit Web API and Google Fitness API.
+// It reads Fitbit device data if the user has migrated their Fitbit account to Google.
+async function syncViaGoogleHealthAPIv4() {
+  const accessToken = appState.googleOAuth.accessToken;
+  const todayISO = new Date().toISOString().split('T')[0]; // "2026-06-01"
+  const yesterdayISO = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+  let gotData = false;
+
+  // Fetch Steps
+  try {
+    const stepsUrl = `https://health.googleapis.com/v4/users/me/dataTypes/steps/dataPoints?filter=steps.interval.start_time>="${todayISO}T00:00:00Z"`;
+    const stepsResp = await fetch(stepsUrl, {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    });
+    
+    if (stepsResp.ok) {
+      const stepsData = await stepsResp.json();
+      console.log("[FitMore] Health API v4 steps response:", stepsData);
+      
+      if (stepsData.dataPoints && stepsData.dataPoints.length > 0) {
+        let totalSteps = 0;
+        stepsData.dataPoints.forEach(dp => {
+          if (dp.intVal !== undefined) totalSteps += dp.intVal;
+          else if (dp.value !== undefined) totalSteps += parseInt(dp.value) || 0;
+        });
+        if (totalSteps > 0) {
+          appState.metrics.steps = totalSteps;
+          appState.metrics.distance = parseFloat((totalSteps * 0.00047).toFixed(2));
+          gotData = true;
+        }
+      }
+    } else {
+      const errBody = await stepsResp.json().catch(() => ({}));
+      console.warn("[FitMore] Health API v4 steps error:", stepsResp.status, errBody);
+      if (stepsResp.status === 403 || stepsResp.status === 404) {
+        throw new Error("Google Health API v4 not available (may need to enable it in Cloud Console)");
+      }
+    }
+  } catch (e) {
+    console.warn("[FitMore] Steps fetch via Health API v4 failed:", e.message);
+    throw e; // Let caller handle fallback
+  }
+
+  // Fetch Active Energy Burned (calories)
+  try {
+    const calUrl = `https://health.googleapis.com/v4/users/me/dataTypes/active-energy-burned/dataPoints?filter=active_energy_burned.interval.start_time>="${todayISO}T00:00:00Z"`;
+    const calResp = await fetch(calUrl, {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    });
+    
+    if (calResp.ok) {
+      const calData = await calResp.json();
+      console.log("[FitMore] Health API v4 calories response:", calData);
+      
+      if (calData.dataPoints && calData.dataPoints.length > 0) {
+        let totalCal = 0;
+        calData.dataPoints.forEach(dp => {
+          const val = dp.doubleVal || dp.fpVal || dp.value || 0;
+          totalCal += parseFloat(val) || 0;
+        });
+        if (totalCal > 0) {
+          appState.metrics.caloriesBurned = Math.round(totalCal);
+          gotData = true;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("[FitMore] Calories fetch via Health API v4 failed:", e.message);
+  }
+
+  // Fetch Sleep Sessions
+  try {
+    const sleepUrl = `https://health.googleapis.com/v4/users/me/dataTypes/sleep/dataPoints?filter=sleep.session.start_time>="${yesterdayISO}T18:00:00Z"`;
+    const sleepResp = await fetch(sleepUrl, {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    });
+    
+    if (sleepResp.ok) {
+      const sleepData = await sleepResp.json();
+      console.log("[FitMore] Health API v4 sleep response:", sleepData);
+      
+      if (sleepData.dataPoints && sleepData.dataPoints.length > 0) {
+        // Process sleep session data
+        let totalSleepMs = 0;
+        sleepData.dataPoints.forEach(dp => {
+          if (dp.startTime && dp.endTime) {
+            totalSleepMs += new Date(dp.endTime).getTime() - new Date(dp.startTime).getTime();
+          }
+        });
+        if (totalSleepMs > 0) {
+          appState.metrics.sleepHours = parseFloat((totalSleepMs / 3600000).toFixed(1));
+          gotData = true;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("[FitMore] Sleep fetch via Health API v4 failed:", e.message);
+  }
+
+  return gotData;
+}
+
+// ---- Strategy 2: Google Fitness REST API (legacy fallback) ----
+// This works for users who use Google Fit on their phone or Wear OS.
+// NOTE: No hardcoded dataSourceId — aggregates from ALL sources (including Fitbit if synced).
+async function syncViaGoogleFitnessAPI() {
+  const accessToken = appState.googleOAuth.accessToken;
+  const now = Date.now();
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const durationMs = (now - todayStart.getTime()) || 86400000;
+
+  // Helper to make aggregate requests without restricting to a specific data source
+  async function fetchAggregate(dataTypeName) {
+    const resp = await fetch('https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        aggregateBy: [{ dataTypeName: dataTypeName }],  // NO dataSourceId — aggregate ALL sources
+        bucketByTime: { durationMillis: durationMs },
+        startTimeMillis: todayStart.getTime(),
+        endTimeMillis: now
+      })
+    });
+    
+    const data = await resp.json();
+    console.log(`[FitMore] Fitness API ${dataTypeName}:`, JSON.stringify(data).substring(0, 500));
+    
+    if (data.error) {
+      console.error(`[FitMore] Fitness API error for ${dataTypeName}:`, data.error);
+      return null;
+    }
+    return data;
+  }
+
+  // Fetch Steps (from ALL sources, not just com.google.android.gms)
+  try {
+    const stepsData = await fetchAggregate("com.google.step_count.delta");
+    if (stepsData?.bucket?.[0]?.dataset?.[0]?.point?.[0]) {
+      const stepVal = stepsData.bucket[0].dataset[0].point[0].value[0].intVal || 0;
+      if (stepVal > 0) {
+        appState.metrics.steps = stepVal;
+        appState.metrics.distance = parseFloat((stepVal * 0.00047).toFixed(2));
+      }
+    }
+  } catch (e) {
+    console.error("[FitMore] Error syncing steps (Fitness API):", e);
+  }
+
+  // Fetch Calories Burned
+  try {
+    const calData = await fetchAggregate("com.google.calories.expended");
+    if (calData?.bucket?.[0]?.dataset?.[0]?.point?.[0]) {
+      const calVal = Math.round(calData.bucket[0].dataset[0].point[0].value[0].fpVal || 0);
+      if (calVal > 0) appState.metrics.caloriesBurned = calVal;
+    }
+  } catch (e) {
+    console.error("[FitMore] Error syncing calories (Fitness API):", e);
+  }
+
+  // Fetch Active Minutes
+  try {
+    const activeData = await fetchAggregate("com.google.active_minutes");
+    if (activeData?.bucket?.[0]?.dataset?.[0]?.point?.[0]) {
+      const activeVal = activeData.bucket[0].dataset[0].point[0].value[0].intVal || 0;
+      if (activeVal > 0) appState.metrics.activeMin = activeVal;
+    }
+  } catch (e) {
+    console.error("[FitMore] Error syncing active minutes (Fitness API):", e);
+  }
+
+  // Fetch Distance
+  try {
+    const distData = await fetchAggregate("com.google.distance.delta");
+    if (distData?.bucket?.[0]?.dataset?.[0]?.point?.[0]) {
+      const meters = distData.bucket[0].dataset[0].point[0].value[0].fpVal || 0;
+      if (meters > 0) {
+        appState.metrics.distance = parseFloat((meters * 0.000621371).toFixed(2)); // meters to miles
+      }
+    }
+  } catch (e) {
+    console.error("[FitMore] Error syncing distance (Fitness API):", e);
+  }
 }
 
 // Pro Key Verification & Card Gating
