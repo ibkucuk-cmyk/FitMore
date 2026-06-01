@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fitbit Classic - Customizable Legacy Dashboard</title>
+  <meta name="description" content="Classic, customizable, data-first Fitbit dashboard without forced AI distraction. Reorder, toggle, and manage steps, sleep stages, stress, and caffeine.">
+  <link rel="stylesheet" href="style.css">
+  <!-- FontAwesome for Premium Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Chart.js for beautiful historical metric graphs -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+  <!-- Top Navigation Header -->
+  <header>
+    <div class="logo-container">
+      <span class="logo-dot"></span>
+      <h1 class="logo-text">fitbit <span class="legacy-badge">Classic</span></h1>
+    </div>
+    <div class="header-actions">
+      <button class="btn" id="btn-google-setup" style="border-color: var(--color-stress); color: var(--color-stress); font-weight:600;" aria-label="Google Cloud and OAuth settings">
+        <i class="fa-brands fa-google"></i> Connect Health
+      </button>
+      <button class="btn" id="btn-customise" aria-label="Customize layout">
+        <i class="fa-solid fa-sliders"></i> Customize
+      </button>
+      <button class="btn btn-primary" id="btn-quick-log" aria-label="Quick log activity">
+        <i class="fa-solid fa-plus"></i> Quick Log
+      </button>
+    </div>
+
+  </header>
+
+  <!-- Top Hero Progress Rings (At-a-glance goal trackers) -->
+  <section class="hero-stats-bar" aria-label="Daily goal progress rings">
+    <!-- Steps Card -->
+    <div class="progress-circle-card" id="goal-steps-card">
+      <div class="svg-ring-container">
+        <svg width="90" height="90">
+          <circle class="svg-ring-bg" cx="45" cy="45" r="38"></circle>
+          <circle class="svg-ring-fill" id="ring-steps" cx="45" cy="45" r="38" stroke="var(--color-steps)"></circle>
+        </svg>
+        <span class="ring-icon" style="color: var(--color-steps)"><i class="fa-solid fa-shoe-prints"></i></span>
+      </div>
+      <div class="ring-info">
+        <span class="ring-title">Steps</span>
+        <span class="ring-value" id="val-steps">7,854</span>
+        <span class="ring-target" id="target-steps">of 10,000 steps</span>
+      </div>
+    </div>
+
+    <!-- Calories Card -->
+    <div class="progress-circle-card" id="goal-calories-card">
+      <div class="svg-ring-container">
+        <svg width="90" height="90">
+          <circle class="svg-ring-bg" cx="45" cy="45" r="38"></circle>
+          <circle class="svg-ring-fill" id="ring-calories" cx="45" cy="45" r="38" stroke="var(--color-calories)"></circle>
+        </svg>
+        <span class="ring-icon" style="color: var(--color-calories)"><i class="fa-solid fa-fire"></i></span>
+      </div>
+      <div class="ring-info">
+        <span class="ring-title">Calories</span>
+        <span class="ring-value" id="val-calories">1,450</span>
+        <span class="ring-target" id="target-calories">of 2,200 kcal</span>
+      </div>
+    </div>
+
+    <!-- Distance Card -->
+    <div class="progress-circle-card" id="goal-distance-card">
+      <div class="svg-ring-container">
+        <svg width="90" height="90">
+          <circle class="svg-ring-bg" cx="45" cy="45" r="38"></circle>
+          <circle class="svg-ring-fill" id="ring-distance" cx="45" cy="45" r="38" stroke="var(--color-distance)"></circle>
+        </svg>
+        <span class="ring-icon" style="color: var(--color-distance)"><i class="fa-solid fa-route"></i></span>
+      </div>
+      <div class="ring-info">
+        <span class="ring-title">Distance</span>
+        <span class="ring-value" id="val-distance">3.4 mi</span>
+        <span class="ring-target" id="target-distance">of 5.0 mi</span>
+      </div>
+    </div>
+
+    <!-- Active Zone Minutes Card -->
+    <div class="progress-circle-card" id="goal-active-card">
+      <div class="svg-ring-container">
+        <svg width="90" height="90">
+          <circle class="svg-ring-bg" cx="45" cy="45" r="38"></circle>
+          <circle class="svg-ring-fill" id="ring-active" cx="45" cy="45" r="38" stroke="var(--color-active)"></circle>
+        </svg>
+        <span class="ring-icon" style="color: var(--color-active)"><i class="fa-solid fa-bolt"></i></span>
+      </div>
+      <div class="ring-info">
+        <span class="ring-title">Active Zone Min</span>
+        <span class="ring-value" id="val-active">22</span>
+        <span class="ring-target" id="target-active">of 30 min</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main Dashboard Grid -->
+  <main class="dashboard-container">
+    <div class="dashboard-grid" id="main-dashboard-grid">
+      
+      <!-- Sleep & Stages Detail Tile -->
+      <div class="metric-card" id="tile-sleep">
+        <div class="card-header">
+          <div class="card-title" style="color: var(--color-sleep)">
+            <i class="fa-solid fa-moon"></i> Sleep Stages
+          </div>
+          <button class="card-action-btn" onclick="openLogModal('sleep')"><i class="fa-solid fa-plus"></i></button>
+        </div>
+        <div class="card-body">
+          <div>
+            <div style="font-size: 1.8rem; font-weight: 700;">7h 24m</div>
+            <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Sleep Score: <strong style="color: var(--color-sleep)">82 (Good)</strong></div>
+          </div>
+          <div class="sleep-stages-container">
+            <!-- Graphical Bar Representation -->
+            <div class="sleep-stage-bar">
+              <div class="stage-seg seg-deep" style="width: 15%;" title="Deep: 1h 6m"></div>
+              <div class="stage-seg seg-rem" style="width: 22%;" title="REM: 1h 38m"></div>
+              <div class="stage-seg seg-light" style="width: 53%;" title="Light: 3h 55m"></div>
+              <div class="stage-seg seg-awake" style="width: 10%;" title="Awake: 45m"></div>
+            </div>
+            <!-- Interactive Sleep Stages Legend -->
+            <div class="sleep-legend">
+              <div class="legend-item">
+                <span class="legend-dot seg-deep"></span>
+                <span>Deep (15%)</span>
+              </div>
+              <div class="legend-item">
+                <span class="legend-dot seg-rem"></span>
+                <span>REM (22%)</span>
+              </div>
+              <div class="legend-item">
+                <span class="legend-dot seg-light"></span>
+                <span>Light (53%)</span>
+              </div>
+              <div class="legend-item">
+                <span class="legend-dot seg-awake"></span>
+                <span>Awake (10%)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stress Management Score Tile -->
+      <div class="metric-card" id="tile-stress">
+        <div class="card-header">
+          <div class="card-title" style="color: var(--color-stress)">
+            <i class="fa-solid fa-brain"></i> Stress Score
+          </div>
+          <button class="card-action-btn" onclick="openLogModal('stress')"><i class="fa-solid fa-face-smile"></i></button>
+        </div>
+        <div class="card-body">
+          <div class="stress-score-display">
+            <div class="stress-dial-bg">
+              <span class="stress-value-big" id="stress-score">78</span>
+            </div>
+          </div>
+          <div>
+            <div class="stress-status" id="stress-status">Calm & Balanced</div>
+            <div style="font-size: 0.8rem; color: var(--text-secondary); text-align: center; margin-top: 0.2rem;">
+              Based on sleep, activity balance, and heart rate variability.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Caffeine Tracker Tile -->
+      <div class="metric-card" id="tile-caffeine">
+        <div class="card-header">
+          <div class="card-title" style="color: var(--color-caffeine)">
+            <i class="fa-solid fa-mug-hot"></i> Caffeine Log
+          </div>
+          <button class="card-action-btn" onclick="openLogModal('caffeine')"><i class="fa-solid fa-plus"></i></button>
+        </div>
+        <div class="card-body">
+          <div>
+            <div style="font-size: 1.8rem; font-weight: 700;" id="txt-caffeine">250 mg</div>
+            <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Daily recommendation: max 400 mg</div>
+          </div>
+          <!-- Clickable Cup visual indicators -->
+          <div class="caffeine-visualizer" id="caffeine-cups">
+            <i class="fa-solid fa-cup-togo coffee-cup-icon filled" data-cup="1"></i>
+            <i class="fa-solid fa-cup-togo coffee-cup-icon filled" data-cup="2"></i>
+            <i class="fa-solid fa-cup-togo coffee-cup-icon" data-cup="3"></i>
+            <i class="fa-solid fa-cup-togo coffee-cup-icon" data-cup="4"></i>
+            <i class="fa-solid fa-cup-togo coffee-cup-icon" data-cup="5"></i>
+          </div>
+          <div class="quick-log-row">
+            <input type="number" id="quick-caffeine-input" class="input-small" placeholder="Log mg (e.g. 80)" min="0">
+            <button class="btn btn-primary" style="padding: 0.5rem 1rem;" id="btn-quick-caffeine">Add</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Food Tracker / Calorie Logger Tile -->
+      <div class="metric-card" id="tile-food">
+        <div class="card-header">
+          <div class="card-title" style="color: var(--color-food)">
+            <i class="fa-solid fa-apple-whole"></i> Food Logging
+          </div>
+          <button class="card-action-btn" onclick="openLogModal('food')"><i class="fa-solid fa-plus"></i></button>
+        </div>
+        <div class="card-body">
+          <div>
+            <div class="stats-row">
+              <span style="color: var(--text-secondary);">Logged</span>
+              <strong id="food-logged">1,450 kcal</strong>
+            </div>
+            <div class="stats-row">
+              <span style="color: var(--text-secondary);">Goal Budget</span>
+              <strong id="food-budget">2,200 kcal</strong>
+            </div>
+            <div class="stats-row">
+              <span style="color: var(--text-secondary);">Remaining</span>
+              <strong style="color: var(--color-food);" id="food-remaining">750 kcal</strong>
+            </div>
+          </div>
+          <div class="quick-log-row">
+            <input type="text" id="quick-food-name" class="input-small" placeholder="e.g. Banana">
+            <input type="number" id="quick-food-calories" class="input-small" placeholder="Calories" style="max-width: 90px;" min="0">
+            <button class="btn btn-primary" style="padding: 0.5rem 1rem;" id="btn-quick-food">Log</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Workouts & split summaries Tile -->
+      <div class="metric-card" id="tile-workout">
+        <div class="card-header">
+          <div class="card-title" style="color: var(--color-active)">
+            <i class="fa-solid fa-person-running"></i> Workouts
+          </div>
+          <button class="card-action-btn" onclick="openLogModal('workout')"><i class="fa-solid fa-plus"></i></button>
+        </div>
+        <div class="card-body">
+          <div style="flex-grow: 1; overflow-y: auto; max-height: 120px; margin-bottom: 0.5rem;" id="workout-list">
+            <!-- Dynamic Workouts Will Render Here -->
+            <div style="font-size: 0.9rem; color: var(--text-secondary); text-align: center; padding-top: 1.5rem;">
+              No workouts logged today.
+            </div>
+          </div>
+          <div style="font-size: 0.8rem; color: var(--text-secondary); border-top: 1px solid rgba(255,255,255,0.05); padding-top: 0.5rem;">
+            Total Active Time: <strong id="total-workout-time">0 min</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- Calories In vs Out History Chart Tile -->
+      <div class="metric-card" id="tile-chart">
+        <div class="card-header">
+          <div class="card-title" style="color: var(--fitbit-teal)">
+            <i class="fa-solid fa-chart-simple"></i> Calories In vs Out Trend
+          </div>
+          <button class="card-action-btn" onclick="openLogModal('chart-history')" title="Log Historical Day"><i class="fa-solid fa-plus"></i> Log Past Day</button>
+        </div>
+        <div class="card-body" style="justify-content: flex-start; gap: 0.5rem;">
+          <div class="chart-container-inner">
+            <canvas id="caloriesComparisonChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- Water Tracker Tile -->
+      <div class="metric-card" id="tile-water">
+        <div class="card-header">
+          <div class="card-title" style="color: var(--color-distance)">
+            <i class="fa-solid fa-droplet"></i> Water Intake
+          </div>
+          <button class="card-action-btn" id="btn-add-water"><i class="fa-solid fa-plus"></i></button>
+        </div>
+        <div class="card-body">
+          <div>
+            <div style="font-size: 1.8rem; font-weight: 700;" id="txt-water">32 oz</div>
+            <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Goal: 64 oz</div>
+          </div>
+          <div style="display: flex; gap: 0.5rem; justify-content: center; font-size: 1.5rem; color: var(--color-distance); padding: 0.5rem 0;" id="water-bottles">
+            <!-- Interactive glasses representation -->
+            <i class="fa-solid fa-glass-water" style="cursor:pointer;" data-water="8"></i>
+            <i class="fa-solid fa-glass-water" style="cursor:pointer;" data-water="16"></i>
+            <i class="fa-solid fa-glass-water" style="cursor:pointer;" data-water="24"></i>
+            <i class="fa-solid fa-glass-water" style="cursor:pointer;" data-water="32"></i>
+            <i class="fa-solid fa-glass-water" style="opacity: 0.25; cursor:pointer;" data-water="40"></i>
+            <i class="fa-solid fa-glass-water" style="opacity: 0.25; cursor:pointer;" data-water="48"></i>
+            <i class="fa-solid fa-glass-water" style="opacity: 0.25; cursor:pointer;" data-water="56"></i>
+            <i class="fa-solid fa-glass-water" style="opacity: 0.25; cursor:pointer;" data-water="64"></i>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Sidebar Customizer Panel Drawer -->
+  <aside class="customizer-drawer" id="customizer-drawer" aria-label="Layout customization panel">
+    <div class="drawer-header">
+      <h2 class="drawer-title"><i class="fa-solid fa-sliders"></i> Toggle Tiles</h2>
+      <button class="close-drawer" id="close-customise" aria-label="Close panel">&times;</button>
+    </div>
+    <div class="customizer-content">
+      <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.5rem;">
+        Choose which health metrics appear on your classic dashboard. Your choices persist automatically.
+      </p>
+      
+      <!-- List of toggles -->
+      <div class="toggle-item">
+        <span>Sleep Stages</span>
+        <label class="switch">
+          <input type="checkbox" id="toggle-sleep" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="toggle-item">
+        <span>Stress Management</span>
+        <label class="switch">
+          <input type="checkbox" id="toggle-stress" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="toggle-item">
+        <span>Caffeine Tracker</span>
+        <label class="switch">
+          <input type="checkbox" id="toggle-caffeine" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="toggle-item">
+        <span>Food Logging</span>
+        <label class="switch">
+          <input type="checkbox" id="toggle-food" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="toggle-item">
+        <span>Workouts</span>
+        <label class="switch">
+          <input type="checkbox" id="toggle-workout" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="toggle-item">
+        <span>Water Intake</span>
+        <label class="switch">
+          <input type="checkbox" id="toggle-water" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="toggle-item">
+        <span>Calories Trend Chart</span>
+        <label class="switch">
+          <input type="checkbox" id="toggle-chart" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+    </div>
+  </aside>
+
+  <!-- Modal overlay containing log dialogues -->
+  <div class="modal-overlay" id="modal-overlay" aria-hidden="true">
+    
+    <!-- Sleep Log Modal -->
+    <div class="modal" id="modal-sleep" style="display:none;">
+      <h3 class="modal-title">Log Sleep</h3>
+      <div class="modal-form-group">
+        <label for="input-sleep-hours">Sleep Duration (Hours)</label>
+        <input type="number" id="input-sleep-hours" placeholder="e.g. 7.5" step="0.1" min="0">
+      </div>
+      <div class="modal-form-group">
+        <label for="input-sleep-score">Sleep Score (1-100)</label>
+        <input type="number" id="input-sleep-score" placeholder="e.g. 85" min="1" max="100">
+      </div>
+      <div class="modal-buttons">
+        <button class="btn" onclick="closeLogModal()">Cancel</button>
+        <button class="btn btn-primary" id="btn-save-sleep">Save</button>
+      </div>
+    </div>
+
+    <!-- Stress Log Modal -->
+    <div class="modal" id="modal-stress" style="display:none;">
+      <h3 class="modal-title">Log Stress & Mood</h3>
+      <div class="modal-form-group">
+        <label for="input-stress-score">Daily Stress Score (1-100)</label>
+        <input type="number" id="input-stress-score" placeholder="e.g. 80" min="1" max="100">
+      </div>
+      <div class="modal-form-group">
+        <label for="input-stress-mood">Mood Description</label>
+        <select id="input-stress-mood">
+          <option value="Calm & Balanced">Calm & Balanced</option>
+          <option value="Relaxed & Joyful">Relaxed & Joyful</option>
+          <option value="Mildly Stressed">Mildly Stressed</option>
+          <option value="Overwhelmed">Overwhelmed</option>
+        </select>
+      </div>
+      <div class="modal-buttons">
+        <button class="btn" onclick="closeLogModal()">Cancel</button>
+        <button class="btn btn-primary" id="btn-save-stress">Save</button>
+      </div>
+    </div>
+
+    <!-- Caffeine Log Modal -->
+    <div class="modal" id="modal-caffeine" style="display:none;">
+      <h3 class="modal-title">Log Caffeine</h3>
+      <div class="modal-form-group">
+        <label for="input-caffeine-mg">Caffeine Amount (mg)</label>
+        <input type="number" id="input-caffeine-mg" placeholder="e.g. 100" min="0">
+      </div>
+      <div class="modal-buttons">
+        <button class="btn" onclick="closeLogModal()">Cancel</button>
+        <button class="btn btn-primary" id="btn-save-caffeine">Save</button>
+      </div>
+    </div>
+
+    <!-- Food Log Modal -->
+    <div class="modal" id="modal-food" style="display:none;">
+      <h3 class="modal-title">Log Food Entry</h3>
+      <div class="modal-form-group">
+        <label for="input-food-name">Food Name</label>
+        <input type="text" id="input-food-name" placeholder="e.g. Oatmeal with fruit">
+      </div>
+      <div class="modal-form-group">
+        <label for="input-food-calories">Calories (kcal)</label>
+        <input type="number" id="input-food-calories" placeholder="e.g. 350" min="0">
+      </div>
+      <div class="modal-buttons">
+        <button class="btn" onclick="closeLogModal()">Cancel</button>
+        <button class="btn btn-primary" id="btn-save-food">Save Entry</button>
+      </div>
+    </div>
+
+    <!-- Workout Log Modal -->
+    <div class="modal" id="modal-workout" style="display:none;">
+      <h3 class="modal-title">Log Activity / Workout</h3>
+      <div class="modal-form-group">
+        <label for="input-workout-type">Activity Type</label>
+        <select id="input-workout-type">
+          <option value="Running">Running</option>
+          <option value="Cycling">Cycling</option>
+          <option value="Strength Training">Strength Training</option>
+          <option value="Yoga">Yoga</option>
+          <option value="Walking">Walking</option>
+        </select>
+      </div>
+      <div class="modal-form-group">
+        <label for="input-workout-duration">Duration (Minutes)</label>
+        <input type="number" id="input-workout-duration" placeholder="e.g. 45" min="1">
+      </div>
+      <div class="modal-form-group">
+        <label for="input-workout-calories">Calories Burned</label>
+        <input type="number" id="input-workout-calories" placeholder="e.g. 350" min="0">
+      </div>
+      <div class="modal-buttons">
+        <button class="btn" onclick="closeLogModal()">Cancel</button>
+        <button class="btn btn-primary" id="btn-save-workout">Log Workout</button>
+      </div>
+    </div>
+
+    <!-- Chart History Log Modal -->
+    <div class="modal" id="modal-chart-history" style="display:none;">
+      <h3 class="modal-title">Log Past Day Record</h3>
+      <div class="modal-form-group">
+        <label for="input-chart-date">Date (e.g. May 30)</label>
+        <input type="text" id="input-chart-date" placeholder="e.g. May 30">
+      </div>
+      <div class="modal-form-group">
+        <label for="input-chart-in">Calories In (kcal)</label>
+        <input type="number" id="input-chart-in" placeholder="e.g. 2100" min="0">
+      </div>
+      <div class="modal-form-group">
+        <label for="input-chart-out">Calories Out (kcal)</label>
+        <input type="number" id="input-chart-out" placeholder="e.g. 2350" min="0">
+      </div>
+      <div class="modal-buttons">
+        <button class="btn" onclick="closeLogModal()">Cancel</button>
+        <button class="btn btn-primary" id="btn-save-chart-history">Save Record</button>
+      </div>
+    </div>
+
+    <!-- Generic Quick Log Modal -->
+    <div class="modal" id="modal-quick-log" style="display:none;">
+      <h3 class="modal-title">Choose Metric to Log</h3>
+      <div style="display:grid; grid-template-columns: repeat(2,1fr); gap: 1rem;">
+        <button class="btn" onclick="switchQuickModal('food')"><i class="fa-solid fa-apple-whole" style="color:var(--color-food)"></i> Food</button>
+        <button class="btn" onclick="switchQuickModal('workout')"><i class="fa-solid fa-person-running" style="color:var(--color-active)"></i> Workout</button>
+        <button class="btn" onclick="switchQuickModal('sleep')"><i class="fa-solid fa-moon" style="color:var(--color-sleep)"></i> Sleep</button>
+        <button class="btn" onclick="switchQuickModal('caffeine')"><i class="fa-solid fa-mug-hot" style="color:var(--color-caffeine)"></i> Caffeine</button>
+        <button class="btn" onclick="switchQuickModal('chart-history')" style="grid-column: span 2;"><i class="fa-solid fa-chart-simple" style="color:var(--fitbit-teal)"></i> Log Historical Day (In vs Out)</button>
+      </div>
+      <div class="modal-buttons">
+        <button class="btn" onclick="closeLogModal()">Close</button>
+      </div>
+    </div>
+
+    <!-- Google Cloud & OAuth Settings Modal -->
+    <div class="modal" id="modal-google-setup" style="display:none; max-width: 520px;">
+      <h3 class="modal-title"><i class="fa-brands fa-google" style="color:var(--color-stress)"></i> Google Cloud Sync Settings</h3>
+      
+      <div class="modal-form-group">
+        <label for="input-g-client-id">Google OAuth 2.0 Client ID</label>
+        <input type="password" id="input-g-client-id" placeholder="Paste Client ID here...">
+      </div>
+      
+      <div class="modal-form-group">
+        <label for="input-g-client-secret">Google OAuth 2.0 Client Secret</label>
+        <input type="password" id="input-g-client-secret" placeholder="Paste Client Secret here...">
+      </div>
+
+      <div class="modal-form-group">
+        <label for="input-g-redirect-uri">Authorized Redirect URI</label>
+        <input type="text" id="input-g-redirect-uri" placeholder="e.g. http://localhost:5500" value="http://localhost:5500">
+      </div>
+
+      <div class="modal-form-group" style="background: rgba(255,255,255,0.03); padding: 0.75rem; border-radius: 12px; font-size: 0.8rem; line-height: 1.4;">
+        <strong style="color: var(--color-stress);">1. Authorization Step:</strong>
+        <p style="color: var(--text-secondary); margin-top: 0.2rem;">
+          Make sure your Google Cloud Console project is configured with the exact matching Authorized Redirect URI entered above.
+        </p>
+        <button class="btn btn-primary" id="btn-g-auth-url" style="margin-top: 0.5rem; width: 100%;"><i class="fa-solid fa-arrow-up-right-from-square"></i> Open Google Authorization Link</button>
+      </div>
+
+
+      <div class="modal-form-group">
+        <label for="input-g-auth-code"><strong>2. Paste Authorization Code / URL:</strong></label>
+        <input type="text" id="input-g-auth-code" placeholder="Paste the redirected example.com URL containing code=...">
+      </div>
+
+
+      <div class="modal-buttons">
+        <button class="btn" onclick="closeLogModal()">Cancel</button>
+        <button class="btn btn-primary" id="btn-save-g-setup">Exchange & Connect</button>
+      </div>
+    </div>
+
+
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

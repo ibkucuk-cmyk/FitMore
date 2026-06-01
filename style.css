@@ -1,0 +1,676 @@
+/* Premium CSS for Legacy Fitbit Dashboard */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+
+:root {
+  /* Color Palette (Fitbit Signature Custom Palette) */
+  --fitbit-teal: #00b0b9;
+  --fitbit-teal-glow: rgba(0, 176, 185, 0.35);
+  --bg-dark: #0d131a;
+  --bg-dark-card: rgba(22, 30, 41, 0.7);
+  --card-border: rgba(255, 255, 255, 0.06);
+  --card-border-hover: rgba(0, 176, 185, 0.4);
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  
+  /* Metric Colors */
+  --color-steps: #00b0b9;
+  --color-calories: #ff6b6b;
+  --color-distance: #4dadf7;
+  --color-active: #ffd43b;
+  --color-sleep: #845ef7;
+  --color-stress: #22b8cf;
+  --color-caffeine: #f76707;
+  --color-food: #51cf66;
+  
+  /* Font & Transitions */
+  --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Base Styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-dark);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  overflow-x: hidden;
+  line-height: 1.5;
+  background-image: 
+    radial-gradient(circle at 10% 20%, rgba(0, 176, 185, 0.08) 0%, transparent 40%),
+    radial-gradient(circle at 90% 80%, rgba(132, 94, 247, 0.08) 0%, transparent 40%);
+  background-attachment: fixed;
+}
+
+/* Header & Navigation */
+header {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background: rgba(13, 19, 26, 0.8);
+  border-bottom: 1px solid var(--card-border);
+  padding: 1rem 2rem;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.logo-container {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.logo-dot {
+  width: 10px;
+  height: 10px;
+  background: var(--fitbit-teal);
+  border-radius: 50%;
+  box-shadow: 0 0 10px var(--fitbit-teal);
+  display: inline-block;
+}
+
+.logo-text {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  background: linear-gradient(135deg, #fff 0%, var(--fitbit-teal) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.legacy-badge {
+  font-size: 0.7rem;
+  background: rgba(0, 176, 185, 0.15);
+  border: 1px solid var(--fitbit-teal);
+  color: var(--fitbit-teal);
+  padding: 0.2rem 0.5rem;
+  border-radius: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.btn {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  border: 1px solid var(--card-border);
+  padding: 0.6rem 1.2rem;
+  border-radius: 10px;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: var(--transition-smooth);
+}
+
+.btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.btn-primary {
+  background: var(--fitbit-teal);
+  color: #0d131a;
+  border: none;
+  font-weight: 600;
+}
+
+.btn-primary:hover {
+  background: #02c3cd;
+  box-shadow: 0 0 15px rgba(0, 176, 185, 0.4);
+}
+
+/* Top Progress Rings Section */
+.hero-stats-bar {
+  display: flex;
+  justify-content: space-around;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.progress-circle-card {
+  background: var(--bg-dark-card);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--card-border);
+  border-radius: 20px;
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex: 1;
+  min-width: 250px;
+  max-width: 320px;
+  position: relative;
+  transition: var(--transition-smooth);
+}
+
+.progress-circle-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--card-border-hover);
+  box-shadow: 0 10px 25px rgba(0, 176, 185, 0.1);
+}
+
+.svg-ring-container {
+  position: relative;
+  width: 90px;
+  height: 90px;
+}
+
+.svg-ring-container svg {
+  transform: rotate(-90deg);
+}
+
+.svg-ring-bg {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.05);
+  stroke-width: 8;
+}
+
+.svg-ring-fill {
+  fill: none;
+  stroke-width: 8;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s ease-out;
+}
+
+.ring-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 1.5rem;
+}
+
+.ring-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.ring-title {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ring-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin-top: 0.1rem;
+}
+
+.ring-target {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-top: 0.1rem;
+}
+
+/* Dashboard Grid */
+.dashboard-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 2rem 4rem 2rem;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.5rem;
+}
+
+/* Card Styling */
+.metric-card {
+  background: var(--bg-dark-card);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--card-border);
+  border-radius: 24px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: 280px;
+  transition: var(--transition-smooth);
+  position: relative;
+  overflow: hidden;
+}
+
+.metric-card:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.card-title i {
+  font-size: 1.25rem;
+}
+
+.card-action-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 0.2rem;
+  border-radius: 6px;
+  transition: var(--transition-smooth);
+}
+
+.card-action-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.card-body {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* Sleep Stages Graph */
+.sleep-stages-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.sleep-stage-bar {
+  display: flex;
+  height: 24px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.stage-seg {
+  height: 100%;
+  transition: var(--transition-smooth);
+}
+
+.seg-deep { background-color: #3b5bdb; }
+.seg-rem { background-color: #845ef7; }
+.seg-light { background-color: #5c7cfa; }
+.seg-awake { background-color: #ff8787; }
+
+.sleep-legend {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-secondary);
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+/* Stress Meter */
+.stress-score-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  height: 120px;
+}
+
+.stress-dial-bg {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  border: 8px solid rgba(255, 255, 255, 0.04);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle, rgba(34, 184, 207, 0.1) 0%, transparent 70%);
+}
+
+.stress-value-big {
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: var(--color-stress);
+}
+
+.stress-status {
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  margin-top: 0.25rem;
+}
+
+/* Food & Caffeine tracker UIs */
+.stats-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.quick-log-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.input-small {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--card-border);
+  color: var(--text-primary);
+  padding: 0.5rem;
+  border-radius: 8px;
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  flex-grow: 1;
+  outline: none;
+}
+
+.input-small:focus {
+  border-color: var(--fitbit-teal);
+}
+
+.caffeine-visualizer {
+  display: flex;
+  gap: 0.4rem;
+  justify-content: center;
+  padding: 0.5rem 0;
+}
+
+.coffee-cup-icon {
+  font-size: 1.8rem;
+  color: rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.coffee-cup-icon.filled {
+  color: var(--color-caffeine);
+  text-shadow: 0 0 10px rgba(247, 103, 7, 0.4);
+}
+
+/* Edit Mode Overlay & Controls */
+.edit-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgb(239, 68, 68);
+  color: rgb(248, 113, 113);
+  font-size: 0.7rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  z-index: 10;
+}
+
+.edit-mode-active .metric-card {
+  border: 2px dashed rgba(255, 255, 255, 0.3);
+  transform: scale(0.98);
+}
+
+.hidden-card {
+  display: none !important;
+}
+
+/* Customizer Panel Drawer */
+.customizer-drawer {
+  position: fixed;
+  top: 0;
+  right: -360px;
+  width: 320px;
+  height: 100vh;
+  background: rgba(13, 19, 26, 0.95);
+  backdrop-filter: blur(20px);
+  border-left: 1px solid var(--card-border);
+  z-index: 1000;
+  padding: 2rem 1.5rem;
+  transition: var(--transition-smooth);
+  box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+  overflow-y: auto;
+}
+
+.customizer-drawer.open {
+  right: 0;
+}
+
+.drawer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.drawer-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.close-drawer {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+.toggle-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.8rem 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+/* Toggle Switch Styling */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 46px;
+  height: 24px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.1);
+  transition: .4s;
+  border-radius: 24px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: var(--fitbit-teal);
+}
+
+input:checked + .slider:before {
+  transform: translateX(22px);
+}
+
+/* Modals */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0,0,0,0.7);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: var(--transition-smooth);
+}
+
+.modal-overlay.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal {
+  background: #161e29;
+  border: 1px solid var(--card-border);
+  padding: 2rem;
+  border-radius: 24px;
+  width: 90%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  transform: translateY(20px);
+  transition: var(--transition-smooth);
+}
+
+.modal-overlay.open .modal {
+  transform: translateY(0);
+}
+
+.modal-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.modal-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.modal-form-group label {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.modal-form-group input, .modal-form-group select {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--card-border);
+  color: var(--text-primary);
+  padding: 0.75rem;
+  border-radius: 10px;
+  font-family: var(--font-sans);
+  outline: none;
+}
+
+.modal-form-group input:focus, .modal-form-group select:focus {
+  border-color: var(--fitbit-teal);
+}
+
+.modal-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+/* Responsive adjust */
+@media (max-width: 768px) {
+  header {
+    padding: 1rem;
+  }
+  
+  .hero-stats-bar {
+    padding: 1rem;
+    gap: 1rem;
+  }
+  
+  .progress-circle-card {
+    min-width: 100%;
+  }
+  
+  .dashboard-container {
+    padding: 0 1rem 3rem 1rem;
+  }
+  
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Calories In vs Out Comparison Chart Card */
+#tile-chart {
+  grid-column: span 2;
+  min-height: 380px;
+}
+
+@media (max-width: 992px) {
+  #tile-chart {
+    grid-column: span 1;
+  }
+}
+
+.chart-container-inner {
+  position: relative;
+  width: 100%;
+  height: 220px;
+  margin-top: 0.5rem;
+}
+
